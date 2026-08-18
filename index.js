@@ -40,6 +40,13 @@ async function connectDB() {
             res.send(result);
         })
 
+        // Company related APIs
+        app.post('/api/companies', async (req, res) => {
+            const company = req.body;
+            const result = await companyCollection.insertOne(company);
+            res.send(result);
+        })
+
 
         console.log('MongoDB connected');
     } catch (err) {
