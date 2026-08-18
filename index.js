@@ -19,6 +19,7 @@ async function connectDB() {
         await client.connect();
         const db = client.db('hireloop');
         const jobsCollection = db.collection('jobs');
+        const companyCollection = db.collection('companies');
 
         app.post('/api/jobs', async (req, res) => {
             const job = req.body;
@@ -45,6 +46,18 @@ async function connectDB() {
             const company = req.body;
             const result = await companyCollection.insertOne(company);
             res.send(result);
+        })
+
+        app.get ('/api/my/company', async (req, res) => {
+            const query = {}
+            
+            if(req.query.recruiterId){
+                query.recruiterId = req.query.recruiterId
+            }
+
+            const result = await companyCollection.findOne(query)
+
+            res.send(result)
         })
 
 
