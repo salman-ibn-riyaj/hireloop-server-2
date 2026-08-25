@@ -23,7 +23,11 @@ async function connectDB() {
 
         app.post('/api/jobs', async (req, res) => {
             const job = req.body;
-            const result = await jobsCollection.insertOne(job);
+            const newJob = {
+                ...job,
+                createdAt: new Date()
+            }
+            const result = await jobsCollection.insertOne(newJob);
             res.send(result);
 
         });
@@ -44,7 +48,11 @@ async function connectDB() {
         // Company related APIs
         app.post('/api/companies', async (req, res) => {
             const company = req.body;
-            const result = await companyCollection.insertOne(company);
+            const newCompany = {
+                ...company,
+                createdAt: new Date()
+            }
+            const result = await companyCollection.insertOne(newCompany);
             res.send(result);
         })
 
