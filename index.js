@@ -20,6 +20,7 @@ async function connectDB() {
         const db = client.db('hireloop');
         const jobsCollection = db.collection('jobs');
         const companyCollection = db.collection('companies');
+        const usersCollection = db.collection('user');
 
         app.post('/api/jobs', async (req, res) => {
             const job = req.body;
@@ -45,6 +46,12 @@ async function connectDB() {
             res.send(result);
         })
 
+        app.get('/api/users', async (req, res) => {
+            const cursor = usersCollection.find();
+            const result = await cursor.toArray();
+            res.send(result)
+        })
+
         // Company related APIs
         app.post('/api/companies', async (req, res) => {
             const company = req.body;
@@ -53,6 +60,12 @@ async function connectDB() {
                 createdAt: new Date()
             }
             const result = await companyCollection.insertOne(newCompany);
+            res.send(result);
+        })
+
+        app.get('/api/companies', async(req, res) => {
+            const cursor = companyCollection.find();
+            const result = await cursor.toArray();
             res.send(result);
         })
 
