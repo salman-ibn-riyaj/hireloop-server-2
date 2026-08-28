@@ -41,7 +41,7 @@ async function connectDB() {
             if(req.query.staus){
                 query.status = req.query.status;
             }
-            const cursor = jobsCollection.find(query);
+            const cursor = jobsCollection.find(query).skip(6);
             const result = await cursor.toArray();
             res.send(result);
         })
