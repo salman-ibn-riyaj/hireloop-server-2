@@ -33,18 +33,70 @@ async function connectDB() {
 
         });
 
+        // app.get('/api/jobs', async (req, res) => {
+        //     const query = {}
+        //     if(req.query.companyId){
+        //         query.companyId = req.query.companyId;
+        //     }
+        //     if(req.query.staus){
+        //         query.status = req.query.status;
+        //     }
+        //     const cursor = jobsCollection.find(query).skip(6);
+        //     const result = await cursor.toArray();
+        //     res.send(result);
+        // })
         app.get('/api/jobs', async (req, res) => {
-            const query = {}
-            if(req.query.companyId){
-                query.companyId = req.query.companyId;
+            try {
+                const { search, category, type, isRemote, companyId, status } = req.query;
+
+                // Base query
+                const query = {};
+
+                // 1. Text search on title, companyName, or location
+                if (search) {
+                    query.$or = [
+                        { title: { $regex: search, $options: 'i' } },
+                        { companyName: { $regex: search, $options: 'i' } },
+                        { location: { $regex: search, $options: 'i' } }
+                    ];
+                }
+
+                // 2. Exact match filters
+                if (category) {
+                    query.category = category;
+                }
+
+                if (type) {
+                    query.type = type;
+                }
+
+                if (isRemote === 'true') {
+                    query.isRemote = true;
+                }
+
+                if (companyId) {
+                    query.companyId = companyId;
+                }
+
+                // 3. Status filter (default to 'active' if not specified)
+                if (status) {
+                    query.status = status;
+                } else {
+                    query.status = 'active';
+                }
+
+                // Fetch matching jobs sorted by latest
+                const result = await jobsCollection
+                    .find(query)
+                    .sort({ createdAt: -1 })
+                    .toArray();
+
+                res.send(result);
+            } catch (error) {
+                console.error('Failed to fetch jobs:', error);
+                res.status(500).send({ message: 'Internal Server Error' });
             }
-            if(req.query.staus){
-                query.status = req.query.status;
-            }
-            const cursor = jobsCollection.find(query).skip(6);
-            const result = await cursor.toArray();
-            res.send(result);
-        })
+        });
 
         app.get('/api/users', async (req, res) => {
             const cursor = usersCollection.find();
@@ -63,16 +115,16 @@ async function connectDB() {
             res.send(result);
         })
 
-        app.get('/api/companies', async(req, res) => {
+        app.get('/api/companies', async (req, res) => {
             const cursor = companyCollection.find();
             const result = await cursor.toArray();
             res.send(result);
         })
 
-        app.get ('/api/my/company', async (req, res) => {
+        app.get('/api/my/company', async (req, res) => {
             const query = {}
-            
-            if(req.query.recruiterId){
+
+            if (req.query.recruiterId) {
                 query.recruiterId = req.query.recruiterId
             }
 
