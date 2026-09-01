@@ -1,5 +1,5 @@
 const express = require('express');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -21,6 +21,7 @@ async function connectDB() {
         const jobsCollection = db.collection('jobs');
         const companyCollection = db.collection('companies');
         const usersCollection = db.collection('user');
+        const applicationsCollection = db.collection('applications');
 
         app.post('/api/jobs', async (req, res) => {
             const job = req.body;
@@ -32,6 +33,18 @@ async function connectDB() {
             res.send(result);
 
         });
+
+        // Application related APIs
+
+        app.post ('/api/applications', async(req, res) => {
+            const application = req.body;
+            const newApplication = {
+                ...application,
+                createdAt: new Date()
+            }
+            const result = await applicationsCollection.insertOne(newApplication);
+            res.send(result);
+        })
 
         // app.get('/api/jobs', async (req, res) => {
         //     const query = {}
@@ -97,6 +110,16 @@ async function connectDB() {
                 res.status(500).send({ message: 'Internal Server Error' });
             }
         });
+
+        app.get (`/api/jobs/:id`, async(req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: new ObjectId(id)
+            }
+
+            const result = await jobsCollection.findOne(query);
+            res.send(result);
+        })
 
         app.get('/api/users', async (req, res) => {
             const cursor = usersCollection.find();
