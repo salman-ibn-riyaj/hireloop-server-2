@@ -22,7 +22,8 @@ async function connectDB() {
         const companyCollection = db.collection('companies');
         const usersCollection = db.collection('user');
         const applicationsCollection = db.collection('applications');
-        const planCollection = db.collection('plans')
+        const planCollection = db.collection('plans');
+        const subscriptionCollection = db.collection('subscriptions')
 
         app.post('/api/jobs', async (req, res) => {
             const job = req.body;
@@ -36,21 +37,21 @@ async function connectDB() {
         });
 
         // Application related APIs
-        app.get('/api/applications', async(req, res) => {
+        app.get('/api/applications', async (req, res) => {
             const query = {}
-            if(req.query.applicantId){
+            if (req.query.applicantId) {
                 query.applicantId = req.query.applicantId
             }
-            if(req.query.jobId){
+            if (req.query.jobId) {
                 query.jobId = req.query.jobId
             }
 
             const cursor = applicationsCollection.find(query);
-            const result =  await cursor.toArray();
+            const result = await cursor.toArray();
             res.send(result)
         })
 
-        app.post ('/api/applications', async(req, res) => {
+        app.post('/api/applications', async (req, res) => {
             const application = req.body;
             const newApplication = {
                 ...application,
@@ -58,6 +59,32 @@ async function connectDB() {
             }
             const result = await applicationsCollection.insertOne(newApplication);
             res.send(result);
+        })
+
+        app.post('/api/subscriptions', async (req, res) => {
+            const data = req.body
+            const subsInfo = {
+                ...data,
+                createdAt: new Date()
+            }
+
+            const result = await subscriptionCollection.insertOne(subsInfo)
+            res.send(result);
+
+            // update subscriber data
+
+            const filter = { email: data.email }
+
+            const updateDocument = {
+                $set: {
+                    plan: data.planId,
+                },
+            };
+
+            const updatedResult = await usersCollection.updateOne(filter, updateDocument)
+            res.send(updatedResult);
+
+
         })
 
         // app.get('/api/jobs', async (req, res) => {
@@ -125,7 +152,7 @@ async function connectDB() {
             }
         });
 
-        app.get (`/api/jobs/:id`, async(req, res) => {
+        app.get(`/api/jobs/:id`, async (req, res) => {
             const id = req.params.id;
             const query = {
                 _id: new ObjectId(id)
@@ -143,7 +170,7 @@ async function connectDB() {
 
         app.get('/api/plans', async (req, res) => {
             const query = {}
-            if(req.query.plan_id){
+            if (req.query.plan_id) {
                 query.id = req.query.plan_id
             }
             const plan = await planCollection.findOne(query)
