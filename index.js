@@ -22,6 +22,7 @@ async function connectDB() {
         const companyCollection = db.collection('companies');
         const usersCollection = db.collection('user');
         const applicationsCollection = db.collection('applications');
+        const planCollection = db.collection('plans')
 
         app.post('/api/jobs', async (req, res) => {
             const job = req.body;
@@ -138,6 +139,15 @@ async function connectDB() {
             const cursor = usersCollection.find();
             const result = await cursor.toArray();
             res.send(result)
+        })
+
+        app.get('/api/plans', async (req, res) => {
+            const query = {}
+            if(req.query.plan_id){
+                query.id = req.query.plan_id
+            }
+            const plan = await planCollection.findOne(query)
+            res.send(plan)
         })
 
         // Company related APIs
