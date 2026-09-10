@@ -87,6 +87,19 @@ async function connectDB() {
 
         })
 
+        app.patch('/api/companies/:id', async (req, res) => {
+            const id = req.params.id;
+            const updatedCompany = req.body;
+            const filter = { _id: new ObjectId(id) }
+            const updateDoc = {
+                $set: {
+                    status: updatedCompany.status
+                }
+            }
+            const result = await companyCollection.updateOne(filter, updateDoc)
+            res.send(result)
+        })
+
         // app.get('/api/jobs', async (req, res) => {
         //     const query = {}
         //     if(req.query.companyId){
