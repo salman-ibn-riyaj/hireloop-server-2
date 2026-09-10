@@ -99,6 +99,8 @@ async function connectDB() {
             const result = await companyCollection.updateOne(filter, updateDoc)
             res.send(result)
         })
+        
+        
 
         // app.get('/api/jobs', async (req, res) => {
         //     const query = {}
