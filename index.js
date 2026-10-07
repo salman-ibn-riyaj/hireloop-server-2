@@ -99,8 +99,8 @@ async function connectDB() {
             const result = await companyCollection.updateOne(filter, updateDoc)
             res.send(result)
         })
-        
-        
+
+
 
         // app.get('/api/jobs', async (req, res) => {
         //     const query = {}
@@ -203,11 +203,69 @@ async function connectDB() {
             res.send(result);
         })
 
+        // app.get('/api/companies', async (req, res) => {
+        //     const cursor = companyCollection.find();
+        //     const result = await cursor.toArray();
+        //     res.send(result);
+        // })
+
+        // inefficient way to Agrregate
         app.get('/api/companies', async (req, res) => {
             const cursor = companyCollection.find();
+            const companies = await cursor.toArray();
+            for (const company of companies) {
+                const filter = {
+                    companyId: company._id.toString()
+                }
+
+                const jobsCount = await jobsCollection.countDocuments(filter);
+                company.jobCount = jobsCount;
+            }
+            res.send(companies);
+        })
+
+
+        app.get('/api/companies2', async (req, res) => {
+            const pipeline = [
+                {
+                    $skip: 4
+                },
+                {
+                    $limit: 4
+                }
+            ]
+
+            const cursor = companyCollection.aggregate(pipeline);
+            const result = await cursor.toArray();
+            res.send(result);
+
+        })
+
+        app.get('/api/stats', async (req, res) => {
+            const pipeline = [
+                {
+                    $group: {
+                        _id: '$type',
+                        count: { $sum: 1 }
+                    }
+                },
+                {
+                    $project: {
+                        type: '$_id',
+                        _id: 0,
+                        count: 1
+                    }
+                },
+                {
+                    $sort: { count: 1 }
+                }
+            ]
+
+            const cursor = jobsCollection.aggregate(pipeline);
             const result = await cursor.toArray();
             res.send(result);
         })
+
 
         app.get('/api/my/company', async (req, res) => {
             const query = {}
