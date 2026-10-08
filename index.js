@@ -14,6 +14,17 @@ const client = new MongoClient(MONGODB_URI);
 
 let db;
 
+
+const myLogger = function (req, res, next) {
+    console.log('middleware logger logged', req.params);
+    next();
+};
+
+const verifyToken = (req, res, next) =>{
+    console.log('verifyToken middleware', req.headers);
+    next()
+}
+
 async function connectDB() {
     try {
         await client.connect();
@@ -87,7 +98,7 @@ async function connectDB() {
 
         })
 
-        app.patch('/api/companies/:id', async (req, res) => {
+        app.patch('/api/companies/:id', myLogger, verifyToken, async (req, res) => {
             const id = req.params.id;
             const updatedCompany = req.body;
             const filter = { _id: new ObjectId(id) }
