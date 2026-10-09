@@ -22,6 +22,16 @@ const myLogger = function (req, res, next) {
 
 const verifyToken = (req, res, next) =>{
     console.log('verifyToken middleware', req.headers);
+
+    const authHeader = req.headers?.authorization;
+    if(!authHeader){
+        return res.status(401).send({message: 'Unauthorized'})
+    }
+
+    const token = authHeader.split(' ')[1];
+    if(!token){
+        return res.status(401).send({message: 'Unauthorized'})      
+    }
     next()
 }
 
@@ -221,7 +231,7 @@ async function connectDB() {
         // })
 
         // inefficient way to Agrregate
-        app.get('/api/companies', async (req, res) => {
+        app.get('/api/companies', myLogger, verifyToken, async (req, res) => {
             const cursor = companyCollection.find();
             const companies = await cursor.toArray();
             for (const company of companies) {
