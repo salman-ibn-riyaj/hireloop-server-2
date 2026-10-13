@@ -20,20 +20,9 @@ const myLogger = function (req, res, next) {
     next();
 };
 
-const verifyToken = (req, res, next) =>{
-    console.log('verifyToken middleware', req.headers);
 
-    const authHeader = req.headers?.authorization;
-    if(!authHeader){
-        return res.status(401).send({message: 'Unauthorized'})
-    }
 
-    const token = authHeader.split(' ')[1];
-    if(!token){
-        return res.status(401).send({message: 'Unauthorized'})      
-    }
-    next()
-}
+
 
 async function connectDB() {
     try {
@@ -45,6 +34,74 @@ async function connectDB() {
         const applicationsCollection = db.collection('applications');
         const planCollection = db.collection('plans');
         const subscriptionCollection = db.collection('subscriptions')
+        const sessionCollection = db.collection('session')
+
+        const verifyToken = async (req, res, next) => {
+            console.log('verifyToken middleware', req.headers);
+
+            const authHeader = req.headers?.authorization;
+            if (!authHeader) {
+                return res.status(401).send({ message: 'Unauthorized' })
+            }
+
+            const token = authHeader.split(' ')[1];
+            if (!token) {
+                return res.status(401).send({ message: 'Unauthorized' })
+            }
+
+            const query = { token: token }
+            const session = await sessionCollection.findOne(query);
+            console.log('Session found:', session);
+
+            if (!session) {
+                return res.status(401).send({ message: 'Unauthorized' })
+            }
+
+            const userId = session?.userId;
+            console.log('User ID from session:', userId);
+
+            const userQuery = {
+                _id: userId
+            }
+
+            const user = await usersCollection.findOne(userQuery);
+            if (!user) {
+                return res.status(401).send({ message: 'Unauthorized' })
+            }
+            req.user = user;
+
+            console.log('User found:', user);
+            next()
+        }
+
+        // Must user after verifyToken middleware
+
+        const verifySeeker = (req, res, next) => {
+            if (req.user?.role !== 'seeker') {
+                return res.status(403).send({ message: 'Forbidden' })
+            }
+            next()
+        }
+
+        // Must user after verifyToken middleware
+        const verifyAdmin = (req, res, next) => {
+            if (req.user?.role !== 'admin') {
+                return res.status(403).send({ message: 'Forbidden Access' })
+            }
+
+            next()
+        }
+
+
+        // Must user after verifyToken middleware
+        const verifyRecruiter = (req, res, next) => {
+            if (req.user?.role !== 'recruiter') {
+                return res.status(403).send({ message: 'Forbidden Access' })
+            }
+
+            next()
+        }
+
 
         app.post('/api/jobs', async (req, res) => {
             const job = req.body;
@@ -58,10 +115,15 @@ async function connectDB() {
         });
 
         // Application related APIs
-        app.get('/api/applications', async (req, res) => {
+        app.get('/api/applications', verifyToken, verifySeeker, async (req, res) => {
             const query = {}
             if (req.query.applicantId) {
                 query.applicantId = req.query.applicantId
+                console.log(req.user, req.query.applicantId)
+
+                if (req.user?._id.toString() !== req.query.applicantId) {
+                    return res.status(403).send({ message: 'Forbidden Access' })
+                }
             }
             if (req.query.jobId) {
                 query.jobId = req.query.jobId
@@ -108,7 +170,7 @@ async function connectDB() {
 
         })
 
-        app.patch('/api/companies/:id', myLogger, verifyToken, async (req, res) => {
+        app.patch('/api/companies/:id', myLogger, verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const updatedCompany = req.body;
             const filter = { _id: new ObjectId(id) }
@@ -135,9 +197,67 @@ async function connectDB() {
         //     const result = await cursor.toArray();
         //     res.send(result);
         // })
+        // app.get('/api/jobs', async (req, res) => {
+        //     try {
+        //         const { search, category, type, isRemote, companyId, status } = req.query;
+
+        //         // Base query
+        //         const query = {};
+
+        //         // 1. Text search on title, companyName, or location
+        //         if (search) {
+        //             query.$or = [
+        //                 { title: { $regex: search, $options: 'i' } },
+        //                 { companyName: { $regex: search, $options: 'i' } },
+        //                 { location: { $regex: search, $options: 'i' } }
+        //             ];
+        //         }
+
+        //         // 2. Exact match filters
+        //         if (category) {
+        //             query.category = category;
+        //         }
+
+        //         if (type) {
+        //             query.type = type;
+        //         }
+
+        //         if (isRemote === 'true') {
+        //             query.isRemote = true;
+        //         }
+
+        //         if (companyId) {
+        //             query.companyId = companyId;
+        //         }
+
+        //         // 3. Status filter (default to 'active' if not specified)
+        //         if (status) {
+        //             query.status = status;
+        //         } else {
+        //             query.status = 'active';
+        //         }
+
+        //         // Fetch matching jobs sorted by latest
+        //         const result = await jobsCollection
+        //             .find(query)
+        //             .sort({ createdAt: -1 })
+        //             .toArray();
+
+        //         res.send(result);
+        //     } catch (error) {
+        //         console.error('Failed to fetch jobs:', error);
+        //         res.status(500).send({ message: 'Internal Server Error' });
+        //     }
+        // });
+
         app.get('/api/jobs', async (req, res) => {
             try {
                 const { search, category, type, isRemote, companyId, status } = req.query;
+
+                // Pagination params (default: page 1, প্রতি page এ 9টা)
+                const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+                const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 9, 1), 50); // max 50
+                const skip = (page - 1) * limit;
 
                 // Base query
                 const query = {};
@@ -168,20 +288,28 @@ async function connectDB() {
                     query.companyId = companyId;
                 }
 
-                // 3. Status filter (default to 'active' if not specified)
-                if (status) {
-                    query.status = status;
-                } else {
-                    query.status = 'active';
-                }
+                // 3. Status filter (default 'active')
+                query.status = status ? status : 'active';
 
-                // Fetch matching jobs sorted by latest
-                const result = await jobsCollection
+                // 4. Total count (filter অনুযায়ী মোট কয়টা job)
+                const totalItems = await jobsCollection.countDocuments(query);
+                const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+
+                // 5. শুধু ওই page এর data আনা
+                const jobs = await jobsCollection
                     .find(query)
                     .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit)
                     .toArray();
 
-                res.send(result);
+                res.send({
+                    jobs,
+                    totalItems,
+                    totalPages,
+                    currentPage: page,
+                    limit,
+                });
             } catch (error) {
                 console.error('Failed to fetch jobs:', error);
                 res.status(500).send({ message: 'Internal Server Error' });
@@ -198,11 +326,6 @@ async function connectDB() {
             res.send(result);
         })
 
-        app.get('/api/users', async (req, res) => {
-            const cursor = usersCollection.find();
-            const result = await cursor.toArray();
-            res.send(result)
-        })
 
         app.get('/api/plans', async (req, res) => {
             const query = {}
